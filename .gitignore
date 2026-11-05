@@ -1,0 +1,29 @@
+# Environments
+.env
+.env.local
+.venv/
+venv/
+env/
+ENV/
+
+# Telegram sessions (Muhim: sessiya va telefon kodlari gitga chiqmasligi shart)
+*.session
+*.session-journal
+
+# Python & Django
+__pycache__/
+*.py[cod]
+*$py.class
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+
+# Ma'lumotlar (.txt keshlar shaxsiy bo'lishi mumkin)
+data/*.txt
+!data/.gitkeep
+
+# IDE va OS fayllari
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

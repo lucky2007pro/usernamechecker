@@ -1,0 +1,82 @@
+{% extends "checker/base.html" %}
+
+{% block title %}Telegram & .env Sozlamalari{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+    <!-- 1. .env FAYL SOZLAMALARI -->
+    <div class="card">
+        <h2>⚙ 1-qadam: .env Fayl Sozlamalari (API_ID va API_HASH)</h2>
+        <p class="text-muted" style="margin-bottom: 14px;">
+            <a href="https://my.telegram.org" target="_blank" style="color:var(--primary);">my.telegram.org</a>
+            ("Development Tools") sahifasidan olingan ma'lumotlarni kiriting. Bu ma'lumotlar avtomatik ravishda
+            <code>.env</code> fayliga saqlanadi.
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_env">
+            <div class="form-group">
+                <label class="form-label">TG_API_ID (raqam):</label>
+                <input type="number" name="api_id" class="form-control" value="{{ env_cfg.api_id }}" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">TG_API_HASH:</label>
+                <input type="text" name="api_hash" class="form-control" value="{{ env_cfg.api_hash }}" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">TG_PHONE (+998...):</label>
+                <input type="text" name="phone" class="form-control" value="{{ env_cfg.phone }}" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">CHECK_DELAY_SECONDS (Yangi so'zlar orasidagi kutish vaqti):</label>
+                <input type="number" step="0.5" min="1" name="delay_seconds" class="form-control" value="{{ env_cfg.delay_seconds }}" required>
+                <small class="text-muted">Eslatma: .txt faylda bor so'zlar uchun kutish vaqti doim 0 soniya!</small>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">💾 .env faylga saqlash</button>
+        </form>
+    </div>
+
+    <!-- 2. TELEGRAM SEANS AVTORIZATSIYASI -->
+    <div class="card">
+        <h2>🔐 2-qadam: Telegram Akkauntni Ulash</h2>
+        <div class="alert {% if auth_state.authorized %}alert-success{% else %}alert-warning{% endif %}" style="margin-top:10px;">
+            {% if auth_state.authorized %}
+                <strong>Holati: ULANGAN ✅</strong><br>
+                Foydalanuvchi: {{ auth_state.user }}
+            {% else %}
+                <strong>Holati: ULANMAGAN ⚠️</strong><br>
+                Sabab: {{ auth_state.reason }}
+            {% endif %}
+        </div>
+
+        <p class="text-muted" style="margin-bottom: 12px;">
+            Terminalda kod kiritib o'tirmaslik uchun to'g'ridan-to'g'ri shu yerdan Telegram kodingizni tasdiqlashingiz mumkin
+            (yoki avvalgi <code>username_checker_session.session</code> faylingizni loyiha papkasiga nusxalab qo'ysangiz, avtomatik ulanadi).
+        </p>
+
+        <form method="post" style="margin-bottom: 16px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="send_code">
+            <div class="form-group">
+                <label class="form-label">Telefon raqamingiz (+998...):</label>
+                <input type="text" name="phone" class="form-control" value="{{ pending_phone }}" required>
+            </div>
+            <button type="submit" class="btn btn-outline" style="width:100%;">📲 1. Tasdiqlash kodini yuborish</button>
+        </form>
+
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="verify_code">
+            <div class="form-group">
+                <label class="form-label">Telegramga kelgan 5 xonali kod:</label>
+                <input type="text" name="code" class="form-control" placeholder="Masalan: 48291" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Ikki bosqichli parol (2FA — faqat o'rnatilgan bo'lsa):</label>
+                <input type="password" name="password" class="form-control" placeholder="Agar 2FA parol bo'lmasa bo'sh qoldiring">
+            </div>
+            <button type="submit" class="btn btn-success" style="width:100%;">✅ 2. Kodni tasdiqlash va ulash</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

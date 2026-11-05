@@ -1,0 +1,277 @@
+{% extends "checker/base.html" %}
+
+{% block content %}
+<!-- 1. STATISTIKA VA .TXT YUKLAB OLISH PANELI -->
+<div class="stats-grid">
+    <div class="stat-box">
+        <div class="text-muted">Jami .txt bazada tekshirilgan</div>
+        <div class="stat-number text-primary" id="stat-total-checked">{{ total_checked_count }}</div>
+        <div class="text-muted" style="margin-top:4px;">Qayta tekshirish: 0 soniya!</div>
+    </div>
+    <div class="stat-box">
+        <div class="text-muted">Topilgan BO'SH nikneymlar</div>
+        <div class="stat-number text-success" id="stat-total-available">{{ available_count }}</div>
+        <div style="margin-top:6px;">
+            <a href="{% url 'checker:download_txt' 'available' %}" class="btn btn-success" style="padding:5px 10px; font-size:0.8rem;">
+                ⬇ available_usernames.txt
+            </a>
+        </div>
+    </div>
+    <div class="stat-box">
+        <div class="text-muted">Band yoki auksiondagi nomlar</div>
+        <div class="stat-number text-danger" id="stat-total-taken">{{ taken_count }}</div>
+        <div style="margin-top:6px;">
+            <a href="{% url 'checker:download_txt' 'checked' %}" class="btn btn-outline" style="padding:5px 10px; font-size:0.8rem;">
+                ⬇ checked_usernames.txt
+            </a>
+        </div>
+    </div>
+    <div class="stat-box">
+        <div class="text-muted">Yangi API so'rov oralig'i</div>
+        <div class="stat-number text-warning">{{ env_cfg.delay_seconds }}s</div>
+        <div class="text-muted" style="margin-top:4px;">Faqat yangi so'zlar uchun</div>
+    </div>
+</div>
+
+{% if not env_cfg.is_configured or not env_cfg.session_file_exists %}
+<div class="alert alert-warning" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <div>
+        <strong>Diqqat:</strong> Yangi nikneymlarni Telegram orqali tekshirish uchun avval
+        <code>.env</code> kalitlarini va Telegram seansini faollashtiring.
+    </div>
+    <a href="{% url 'checker:telegram_auth' %}" class="btn btn-primary">Telegram akkauntni ulash →</a>
+</div>
+{% endif %}
+
+<!-- 2. JONLI PROGRESS PANELI (.txt yuklab tekshirilayotganda ishlaydi) -->
+<div class="card" style="margin-bottom: 18px;" id="live-status-card">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div>
+            <h2>🔄 Ommaviy (.txt) tekshiruv holati: <span id="live-state-badge" class="badge {% if batch_status.is_running %}badge-free{% else %}badge-cache{% endif %}">{% if batch_status.is_running %}ISHLAMOQDA{% else %}TAYYOR{% endif %}</span></h2>
+            <p class="text-muted" id="live-last-message">{{ batch_status.last_message }}</p>
+        </div>
+        <div style="display:flex; gap:8px;">
+            <form method="post" action="{% url 'checker:start_builtin' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary">
+                    🚀 Tayyor {{ built_in_word_count }} ta toza so'zni tekshirish
+                </button>
+            </form>
+            <form method="post" action="{% url 'checker:stop_scan' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">⏹ To'xtatish</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="live-progress-bar" style="width: {{ batch_status.progress_percent }}%;"></div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; font-size:0.88rem;" class="text-muted">
+        <span>Jarayon: <strong id="live-processed">{{ batch_status.processed_words }}</strong> / <strong id="live-total">{{ batch_status.total_words }}</strong> (<span id="live-percent">{{ batch_status.progress_percent }}</span>%)</span>
+        <span>⚡ .txt keshdan 0 soniyada o'tdi: <strong class="text-primary" id="live-cache-hits">{{ batch_status.instant_cache_hits }}</strong> ta</span>
+        <span>🌐 Yangi API tekshiruv: <strong class="text-warning" id="live-api-count">{{ batch_status.api_checked_count }}</strong> ta</span>
+        <span>✅ Bo'sh topildi: <strong class="text-success" id="live-avail-run">{{ batch_status.available_found_in_run }}</strong> ta</span>
+    </div>
+</div>
+
+<!-- 3. BITTA SO'ZNI TEKSHIRISH VA .TXT FAYL YUKLASH -->
+<div class="grid-2">
+    <!-- Bitta toza so'zni tekshirish -->
+    <div class="card">
+        <h2>🔍 Bitta toza so'zni tekshirish</h2>
+        <p class="text-muted" style="margin-bottom: 12px;">
+            Faqat 1 ta toza so'z (raqamlarsiz va ortiqcha harflarsiz, masalan: <code>naruto</code>, <code>lucky</code>, <code>halcyon</code>).
+            Agar u avval tekshirilgan bo'lsa, <strong>4 soniya kutmasdan 0 soniyada</strong> `.txt` fayldan chiqarib beradi!
+        </p>
+        <form method="post" action="{% url 'checker:check_single' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label">Nikneym (5–32 ta harf, faqat a-z):</label>
+                <input type="text" name="username" class="form-control" placeholder="Masalan: lucky yoki naruto" required pattern="[A-Za-z@]{5,33}" title="Faqat 5 dan 32 tagacha inglizcha harflar (raqamlarsiz)">
+            </div>
+            <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+                <input type="checkbox" name="force_refresh" id="force_refresh">
+                <label for="force_refresh" class="text-muted" style="cursor:pointer;">
+                    .txt keshda bo'lsa ham Telegramdan qayta tekshirish
+                </label>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Tekshirish</button>
+        </form>
+
+        {% if single_result %}
+        <div class="alert {% if single_result.status == 'BOSH' %}alert-success{% else %}alert-error{% endif %}" style="margin-top: 14px; margin-bottom: 0;">
+            <div><strong>Natija:</strong> @{{ single_result.username }} —
+                {% if single_result.status == 'BOSH' %}
+                    <span class="badge badge-free">BO'SH ✅</span>
+                {% else %}
+                    <span class="badge badge-taken">{{ single_result.status }} ❌</span>
+                {% endif %}
+            </div>
+            <div class="text-muted" style="margin-top:4px;">
+                Manba:
+                {% if single_result.from_cache %}
+                    <span class="badge badge-cache">⚡ .txt keshdan ({{ single_result.elapsed_seconds }} soniya — kutishsiz!)</span>
+                {% else %}
+                    Telegram API ({{ single_result.elapsed_seconds }} soniya, .txt faylga saqlandi)
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- .txt fayl kiritib ichidan tekshirish -->
+    <div class="card">
+        <h2>📂 .txt fayl yuklab ichidan tekshirish</h2>
+        <p class="text-muted" style="margin-bottom: 12px;">
+            O'zingizning <code>.txt</code> faylingizni yuklang yoki pastga so'zlarni tashlang.
+            Dastur avtomatik ravishda faqat <strong>bitta toza so'zlarni</strong> (raqamsiz) ajratib oladi va <code>checked_usernames.txt</code> da borlarini 4 soniya kutmasdan darhol o'tkazadi!
+        </p>
+        <form method="post" action="{% url 'checker:upload_txt' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label">1-usul: .txt fayl tanlang:</label>
+                <input type="file" name="txt_file" accept=".txt" class="form-control">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Yoki 2-usul: So'zlarni shu yerga yozing (har qatorda 1 tadan):</label>
+                <textarea name="pasted_words" rows="3" class="form-control" placeholder="naruto&#10;lucky&#10;uchiha&#10;halcyon"></textarea>
+            </div>
+            <button type="submit" class="btn btn-success" style="width:100%;">
+                📥 .txt ro'yxatni tekshirishni boshlash
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- 4. TOPILGAN BO'SH NIKNEYMLAR VA OXIRGI TEKSHIRILGANLAR JADVALI -->
+<div class="grid-2">
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h2>✅ Topilgan bo'sh nikneymlar (.txt)</h2>
+            <a href="{% url 'checker:download_txt' 'available' %}" class="btn btn-success" style="padding:5px 10px; font-size:0.8rem;">
+                ⬇ .txt yuklab olish
+            </a>
+        </div>
+        <div class="scroll-box">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nikneym</th>
+                        <th>Holati</th>
+                        <th>Vaqt</th>
+                    </tr>
+                </thead>
+                <tbody id="available-table-body">
+                    {% for item in available_list %}
+                    <tr>
+                        <td><strong>@{{ item.username }}</strong></td>
+                        <td><span class="badge badge-free">BO'SH ✅</span></td>
+                        <td class="text-muted">{{ item.timestamp }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" class="text-muted">Hozircha bo'sh nikneymlar topilmagan.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h2>📋 Barcha tekshirilganlar (.txt kesh)</h2>
+            <div style="display:flex; gap:6px;">
+                <a href="{% url 'checker:download_txt' 'checked' %}" class="btn btn-outline" style="padding:5px 10px; font-size:0.8rem;">
+                    ⬇ .txt yuklab olish
+                </a>
+                <form method="post" action="{% url 'checker:clear_cache' %}" onsubmit="return confirm('Haqiqatan ham .txt keshni tozalamoqchimisiz?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline" style="padding:5px 10px; font-size:0.8rem; color:#f87171;">
+                        🗑 Tozalash
+                    </button>
+                </form>
+            </div>
+        </div>
+        <div class="scroll-box">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nikneym</th>
+                        <th>Holati</th>
+                        <th>Vaqt</th>
+                    </tr>
+                </thead>
+                <tbody id="checked-table-body">
+                    {% for item in checked_list %}
+                    <tr>
+                        <td>@{{ item.username }}</td>
+                        <td>
+                            {% if item.status == 'BOSH' %}
+                                <span class="badge badge-free">BO'SH ✅</span>
+                            {% else %}
+                                <span class="badge badge-taken">{{ item.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">{{ item.timestamp }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" class="text-muted">Hali hech qanday nikneym tekshirilmagan.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Har 2 soniyada jonli holatni yangilab turish
+    async function pollBatchStatus() {
+        try {
+            const resp = await fetch("{% url 'checker:api_status' %}");
+            if (!resp.ok) return;
+            const data = await resp.json();
+
+            document.getElementById("stat-total-checked").textContent = data.total_checked_in_txt;
+            document.getElementById("stat-total-available").textContent = data.total_available_in_txt;
+            document.getElementById("stat-total-taken").textContent = data.total_taken_in_txt;
+
+            document.getElementById("live-last-message").textContent = data.last_message;
+            document.getElementById("live-processed").textContent = data.processed_words;
+            document.getElementById("live-total").textContent = data.total_words;
+            document.getElementById("live-percent").textContent = data.progress_percent;
+            document.getElementById("live-progress-bar").style.width = data.progress_percent + "%";
+            document.getElementById("live-cache-hits").textContent = data.instant_cache_hits;
+            document.getElementById("live-api-count").textContent = data.api_checked_count;
+            document.getElementById("live-avail-run").textContent = data.available_found_in_run;
+
+            const badge = document.getElementById("live-state-badge");
+            if (data.is_running) {
+                badge.textContent = "ISHLAMOQDA (@" + (data.current_word || "...") + ")";
+                badge.className = "badge badge-free";
+            } else {
+                badge.textContent = "TAYYOR";
+                badge.className = "badge badge-cache";
+            }
+
+            if (data.latest_available && data.latest_available.length > 0) {
+                const tbody = document.getElementById("available-table-body");
+                tbody.innerHTML = data.latest_available.map(item => `
+                    <tr>
+                        <td><strong>@${item.username}</strong></td>
+                        <td><span class="badge badge-free">BO'SH ✅</span></td>
+                        <td class="text-muted">${item.timestamp}</td>
+                    </tr>
+                `).join("");
+            }
+        } catch (err) {
+            // Tarmoq xatosi bo'lsa e'tiborsiz qoldiramiz
+        }
+    }
+    setInterval(pollBatchStatus, 2000);
+</script>
+{% endblock %}
