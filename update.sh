@@ -12,3 +12,4 @@ pip install -r requirements.txt
 
 systemctl restart tg_checker
 echo "=== Loyiha yangilandi va servis qayta ishga tushirildi! ==="
+

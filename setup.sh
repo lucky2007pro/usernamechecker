@@ -46,7 +46,7 @@ After=network.target
 [Service]
 User=root
 WorkingDirectory=${APP_DIR}
-ExecStart=${APP_DIR}/venv/bin/gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 1 --threads 4 --timeout 120
+ExecStart=${APP_DIR}/venv/bin/gunicorn config.wsgi:application --bind 0.0.0.0:8090 --workers 1 --threads 4 --timeout 120
 Restart=always
 RestartSec=5
 
@@ -64,8 +64,9 @@ SERVER_IP=$(curl -s -4 ifconfig.me || hostname -I | awk '{print $1}')
 echo ""
 echo "========================================================"
 echo " TABRIKLAYMIZ! Sayt muvaffaqiyatli ishga tushirildi!   "
-echo " Manzil: http://${SERVER_IP}:8000                     "
+echo " Manzil: http://${SERVER_IP}:8090                     "
 echo " Servis holati: systemctl status tg_checker           "
 echo " Servisni qayta ishga tushirish: systemctl restart tg_checker "
 echo " Loglarni ko'rish: journalctl -u tg_checker -f        "
 echo "========================================================"
+
