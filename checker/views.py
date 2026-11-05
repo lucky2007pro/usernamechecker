@@ -10,6 +10,7 @@ Django Views:
 from django.contrib import messages
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from .services import (
@@ -61,6 +62,7 @@ def index_view(request: HttpRequest) -> HttpResponse:
     return render(request, "checker/index.html", context)
 
 
+@csrf_exempt
 @require_POST
 def check_single_view(request: HttpRequest) -> HttpResponse:
     """Bitta toza so'zni tekshirish (agar .txt keshda bo'lsa 0 soniyada!)."""
@@ -87,6 +89,7 @@ def check_single_view(request: HttpRequest) -> HttpResponse:
     return redirect("checker:index")
 
 
+@csrf_exempt
 @require_POST
 def upload_txt_view(request: HttpRequest) -> HttpResponse:
     """
@@ -138,6 +141,7 @@ def upload_txt_view(request: HttpRequest) -> HttpResponse:
     return redirect("checker:index")
 
 
+@csrf_exempt
 @require_POST
 def start_builtin_scan_view(request: HttpRequest) -> HttpResponse:
     """Dastur ichidagi tayyor toza inglizcha va anime so'zlar lug'atini tekshirish."""
@@ -154,6 +158,7 @@ def start_builtin_scan_view(request: HttpRequest) -> HttpResponse:
     return redirect("checker:index")
 
 
+@csrf_exempt
 @require_POST
 def stop_scan_view(request: HttpRequest) -> HttpResponse:
     """Fonda ishlayotgan tekshiruvni to'xtatish."""
@@ -162,6 +167,7 @@ def stop_scan_view(request: HttpRequest) -> HttpResponse:
     return redirect("checker:index")
 
 
+@csrf_exempt
 @require_POST
 def clear_cache_view(request: HttpRequest) -> HttpResponse:
     """Barcha .txt kesh fayllarini tozalash."""
@@ -217,6 +223,7 @@ def api_status_view(request: HttpRequest) -> JsonResponse:
     return JsonResponse(status_data)
 
 
+@csrf_exempt
 def telegram_auth_view(request: HttpRequest) -> HttpResponse:
     """
     .env sozlamalarini kiritish va Telegram akkauntga veb-brauzerning o'zidan

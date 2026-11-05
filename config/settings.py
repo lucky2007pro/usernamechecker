@@ -98,6 +98,8 @@ DATABASES = {
 }
 
 SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
+SESSION_COOKIE_NAME = "tg_checker_sessionid"
+CSRF_COOKIE_NAME = "tg_checker_csrftoken"
 MESSAGE_STORAGE = "django.contrib.messages.storage.cookie.CookieStorage"
 
 LANGUAGE_CODE = "uz-uz"
